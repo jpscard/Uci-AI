@@ -7,7 +7,7 @@ Ucí AI (do Nhengatu, onde 'Ucí' significa 'Limpar') é uma aplicação web des
 A aplicação oferece uma interface interativa para que os usuários possam realizar análises de materiais a partir de diversas fontes. O sistema processa o conteúdo, identifica os materiais recicláveis e apresenta um relatório consolidado com estatísticas e gráficos.
 
 ## 🔗 Links Úteis
-- **Repositório GitHub:** [https://github.com/jpscard/Uc-AI](https://github.com/jpscard/Uc-AI)
+- **Repositório GitHub:** [https://github.com/jpscard/uci_ai/tree/main](https://github.com/jpscard/uci_ai/tree/main)
 - **Aplicação Streamlit:** [https://uciaiv1.streamlit.app/](https://uciaiv1.streamlit.app/)
 
 ## 🗺️ Fluxograma da Arquitetura
