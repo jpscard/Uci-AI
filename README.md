@@ -78,9 +78,9 @@ graph TD
 
 O projeto foi desenvolvido pelo **Grupo 5**, composto pelos seguintes membros:
 
-- Felipe Rafael dos Santos Barbosa
-- João Paulo da Silva Cardoso
-- Victor Amazonas Viegas Ferreira
+| <img src="assets/img/jpc.jpg" width="150"> | <img src="assets/img/felipe.jpg" width="150"> | <img src="https://via.placeholder.com/150" width="150"> |
+|:---:|:---:|:---:|
+| João Paulo Cardoso | Felipe Rafael dos Santos Barbosa | Victor Amazonas Viegas Ferreira |
 
 ## 🚀 Como Executar o Projeto
 
