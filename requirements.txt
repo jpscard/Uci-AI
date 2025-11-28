@@ -1,0 +1,15 @@
+streamlit
+pandas
+matplotlib
+seaborn
+langchain
+langchain-community
+langchain-google-genai
+google-generativeai
+langchain-experimental
+tabulate
+fpdf2
+ultralytics
+opencv-python
+yt_dlp
+Pillow
