@@ -21,7 +21,7 @@ graph TD
     subgraph "Frontend (Interface Web com Streamlit)"
         style UI fill:#2682FF,stroke:#FFF,stroke-width:2px,color:#FFF
         UI[Interface da Aplicação Ucí AI]
-        Input[("<b>Entrada de Mídia</b><br>Upload de Imagem/Vídeo<br>Captura da Webcam<br>URL do YouTube")]
+        Input[("<b>Entrada de Mídia</b><br>Upload de Imagem/Vídeo<br>Seleção de Mídia da Lista<br>Captura da Webcam<br>URL do YouTube")]
         Output[("<b>Exibição do Resultado</b><br>Imagem/Vídeo com detecções<br>Gráficos e estatísticas")]
         Download[("<b>Download</b><br>Relatório em PDF")]
     end
@@ -55,32 +55,35 @@ graph TD
 
 - **Interface Intuitiva**: Navegação simplificada com abas para cada funcionalidade.
 - **Análise Multi-fonte**: Analise materiais a partir de:
-    - **Imagens**: Faça upload de arquivos de imagem (JPG, PNG, etc.).
-    - **Vídeos**: Envie arquivos de vídeo para análise.
+    - **Imagens**: Faça upload de arquivos de imagem ou selecione de uma lista pré-definida.
+    - **Vídeos**: Envie arquivos de vídeo ou selecione de uma lista pré-definida.
     - **Webcam**: Realize detecção em tempo real usando sua webcam.
     - **YouTube**: Cole a URL de um vídeo do YouTube para análise direta.
+- **Contagem de Itens em Vídeos**:
+    - **Área de Interesse (ROI) e Linha de Contagem Ajustáveis**: Configure uma área de interesse e uma linha de contagem para contar objetos que cruzam a linha na direção especificada.
+    - **Rastro de Objetos**: Visualize o rastro dos objetos detectados para entender melhor o seu movimento.
+    - **Comprimento do Rastro Ajustável**: Controle o comprimento do rastro dos objetos.
 - **Modelo de Detecção YOLO**: Utiliza um modelo `ultralytics` treinado para identificar e classificar objetos de interesse.
 - **Relatórios Detalhados**: Ao final da análise, um relatório consolidado é gerado, incluindo:
     - Tabela com dados de detecção.
     - Gráficos de análise.
     - Opção para baixar o relatório completo em formato **PDF**.
 - **Visualização de Desempenho**: Uma seção dedicada para visualizar as métricas de desempenho do modelo de IA, como mAP, Precisão e Recall.
+- **Seção ODS**: A tela de boas-vindas agora inclui uma seção sobre os Objetivos de Desenvolvimento Sustentável (ODS) 11, 12 e 17.
 
-## 🛠️ Tecnologias Utilizadas
+## ⚙️ Configurações da Análise
 
-- **Backend & Frontend**: Python, Streamlit
-- **Inteligência Artificial**: PyTorch, Ultralytics (YOLO)
-- **Processamento de Mídia**: OpenCV, yt-dlp
-- **Relatórios**: FPDF2
-- **Visualização de Dados**: Pandas, Matplotlib
+A barra lateral da aplicação permite ajustar as seguintes configurações:
 
-## 👨‍💻 Equipe
-
-O projeto foi desenvolvido pelo **Grupo 5**, composto pelos seguintes membros:
-
-| <img src="assets/img/jpc.jpg" width="150"> | <img src="assets/img/felipe.jpg" width="150"> | <img src="https://via.placeholder.com/150" width="150"> |
-|:---:|:---:|:---:|
-| João Paulo Cardoso | Felipe Rafael dos Santos Barbosa | Victor Amazonas Viegas Ferreira |
+- **Ajuste a Confiança do Modelo**: Defina o limiar de confiança para a detecção de objetos.
+- **Habilitar Contagem de Itens**: Ative ou desative a funcionalidade de contagem de itens em vídeos.
+- **Configuração da Área de Contagem**:
+    - **Posição Vertical Central da Área (%)**: Defina o centro da faixa de contagem.
+    - **Altura da Área (%)**: Defina a espessura da faixa de contagem.
+- **Configuração da Linha de Contagem**:
+    - **Direção da Contagem**: Escolha a direção em que os objetos serão contados ao cruzar a linha.
+    - **Posição da Linha de Contagem (%)**: Defina a posição da linha dentro da área de contagem.
+    - **Comprimento do Rastro**: Defina o comprimento do rastro dos objetos detectados.
 
 ## 🚀 Como Executar o Projeto
 
@@ -99,3 +102,11 @@ O projeto foi desenvolvido pelo **Grupo 5**, composto pelos seguintes membros:
     ```bash
     streamlit run app.py
     ```
+
+## 👨‍💻 Equipe
+
+O projeto foi desenvolvido pelo **Grupo 5**, composto pelos seguintes membros:
+
+- Felipe Rafael dos Santos Barbosa
+- João Paulo da Silva Cardoso
+- Victor Amazonas Viegas Ferreira

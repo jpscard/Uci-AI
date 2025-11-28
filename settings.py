@@ -20,7 +20,7 @@ SOURCES_LIST = [IMAGE, VIDEO, WEBCAM, YOUTUBE]
 
 # --- Diretórios de Ativos (Assets) ---
 ASSETS_DIR = ROOT / 'assets'
-IMG_DIR = ASSETS_DIR / 'img'
+IMG_DIR = ASSETS_DIR / 'images'
 VIDEO_DIR = ASSETS_DIR / 'videos'
 TRAINING_RESULTS_DIR = ASSETS_DIR / 'training_results'
 
@@ -33,15 +33,19 @@ DETECTION_MODEL = MODEL_DIR / 'best.pt'
 
 # --- Dicionário de Vídeos ---
 VIDEOS_DICT = {
-    'video_1': VIDEO_DIR / 'abacate.mp4',
+    'video_1': VIDEO_DIR / 'video_1.mp4',
     'video_2': VIDEO_DIR / 'banana.mp4',
     'video_3': VIDEO_DIR / 'caqui.mp4',
     'video_4': VIDEO_DIR / 'mamao.mp4',
-    'video_5': VIDEO_DIR / 'melancia.mp4',
-    'video_6': VIDEO_DIR / 'morango.mp4',
-    'video_7': VIDEO_DIR / 'pera.mp4',
-    'video_8': VIDEO_DIR / 'pimentao.mp4',
-    'video_9': VIDEO_DIR / 'tomate.mp4',
+}
+
+# --- Dicionário de Imagens ---
+IMAGES_DICT = {
+    'imagem_1.jpg': IMG_DIR / 'imagem_1.jpg',
+    'imagem_2.jpg': IMG_DIR / 'imagem_2.jpg',
+    'imagem_3.jpg': IMG_DIR / 'imagem_3.jpg',
+    'imagem_4.jpg': IMG_DIR / 'imagem_4.jpg',
+    'imagem_5.jpg': IMG_DIR / 'imagem_5.jpg',
 }
 
 # --- Webcam ---

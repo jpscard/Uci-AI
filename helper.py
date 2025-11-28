@@ -13,6 +13,8 @@ from pathlib import Path
 import tempfile
 import random
 import string
+import os
+import numpy as np
 
 # Garante que o diretório de SAÍDA exista ao iniciar
 settings.OUTPUT_DIR.mkdir(exist_ok=True)
@@ -52,13 +54,18 @@ def save_uploaded_file(uploaded_file):
 
 def process_uploaded_images(source_imgs, model, confidence):
     """
-    Processa uma lista de imagens carregadas, realiza a detecção
+    Processa uma lista de imagens carregadas (ou caminhos de imagem), realiza a detecção
     e retorna os dados e as imagens para exibição.
     """
+    
+    # Ordena as imagens pelo nome do arquivo (se for objeto) ou pelo caminho (se for str)
+    source_imgs.sort(key=lambda x: x.name if hasattr(x, 'name') else x)
+    
     detections_data = []
     processed_images_display = []
-    for uploaded_image in source_imgs:
-        img_pil = PIL.Image.open(uploaded_image).convert('RGB')
+    for i, source_image in enumerate(source_imgs):
+        # Se for um caminho de arquivo (string), abre a imagem. Se for um objeto UploadedFile, também funciona.
+        img_pil = PIL.Image.open(source_image).convert('RGB')
         res = model.predict(img_pil, conf=confidence)
         boxes = res[0].boxes
         res_plotted = res[0].plot()[:, :, ::-1]
@@ -71,8 +78,11 @@ def process_uploaded_images(source_imgs, model, confidence):
         # Calcula a pontuação
         score = sum(PONTOS_POR_CLASSE.get(name, 0) for name in detected_class_names)
 
+        # Define o nome da fonte
+        source_name = os.path.basename(source_image) if isinstance(source_image, str) else source_image.name
+
         detections_data.append({
-            'Fonte': uploaded_image.name,
+            'Fonte': f"Imagem {i+1:02d} ({source_name})",
             'Itens': len(classes),
             'Classes': detected_class_names,
             'Pontos': score,
@@ -80,80 +90,107 @@ def process_uploaded_images(source_imgs, model, confidence):
         })
     return detections_data, processed_images_display
 
-def process_video_stream(vid_cap, model, confidence, source_name='Vídeo Analisado', tracker=None):
+def process_video_stream(vid_cap, model, confidence, source_name='Vídeo Analisado', tracker=None, roi_coords=None, counting_direction=None, line_position_percent=None, trail_length=30):
     """
     Processa um stream de vídeo (com exibição), exibe os resultados lado a lado
     e coleta dados de detecção para o relatório.
     """
     col1, col2 = st.columns(2)
-    st_frame1 = col1.empty(); st_frame2 = col2.empty()
+    st_frame1 = col1.empty()
+    st_frame2 = col2.empty()
+
+    counted_ids = set()
+    track_history = {}
     all_detected_classes = []
+
     while vid_cap.isOpened():
         success, image = vid_cap.read()
-        if not success: break
+        if not success:
+            break
+
         image_resized = cv2.resize(image, (720, int(720 * (9/16))))
-        if tracker: res = model.track(image_resized, conf=confidence, persist=True, tracker=tracker)
-        else: res = model.predict(image_resized, conf=confidence)
-        boxes = res[0].boxes
-        frame_classes = [int(box.cls[0]) for box in boxes]
-        all_detected_classes.extend(frame_classes)
-        res_plotted = res[0].plot()
-        st_frame1.image(image_resized, caption='Original', channels="BGR", use_container_width=True)
-        st_frame2.image(res_plotted, caption='Detectado', channels="BGR", use_container_width=True)
+
+        if roi_coords and counting_direction and line_position_percent is not None:
+            res_plotted, detected_classes, new_counted_ids, new_track_history = process_video_frame(
+                image_resized, model, confidence, counted_ids, roi_coords, track_history, counting_direction, line_position_percent, display=True, trail_length=trail_length
+            )
+            counted_ids = new_counted_ids
+            track_history = new_track_history
+            all_detected_classes.extend(detected_classes)
+        else:
+            res = model.predict(image_resized, conf=confidence)
+            res_plotted = res[0].plot()
+            boxes = res[0].boxes
+            frame_classes = [int(box.cls[0]) for box in boxes]
+            all_detected_classes.extend(frame_classes)
+        
+        st_frame1.image(image_resized, caption='Original', channels="BGR", width='stretch')
+        st_frame2.image(res_plotted, caption='Detectado', channels="BGR", width='stretch')
+
     vid_cap.release()
     
-    # Para a pontuação, consideramos todas as detecções, não apenas as classes únicas
     all_detected_class_names_for_scoring = [CLASSES.get(cls, "") for cls in all_detected_classes]
     score = sum(PONTOS_POR_CLASSE.get(name, 0) for name in all_detected_class_names_for_scoring)
 
-    # Para exibição no relatório, usamos nomes de classes únicos
     unique_classes_ids = sorted(list(set(all_detected_classes)))
     detected_class_names_display = [CLASSES.get(cls, "") for cls in unique_classes_ids]
     status = "Reciclável" if detected_class_names_display else "Nenhum item"
     
     detections_data = [{
         'Fonte': source_name,
-        'Itens': len(all_detected_classes),
-        'Classes': detected_class_names_display, # Usar nomes únicos para exibição
+        'Itens': len(counted_ids) if roi_coords else len(all_detected_classes),
+        'Classes': detected_class_names_display,
         'Pontos': score,
         'Status': status
     }]
     return detections_data
 
-def process_video_stream_for_batch(vid_cap, model, confidence):
+def process_video_stream_for_batch(vid_cap, model, confidence, roi_coords=None, counting_direction=None, line_position_percent=None, trail_length=30):
     """
     Versão modificada que não exibe frames, apenas processa e retorna os dados.
     Ideal para análise em lote, para não poluir a tela.
     """
+    counted_ids = set()
+    track_history = {}
     all_detected_classes = []
+
     while vid_cap.isOpened():
         success, image = vid_cap.read()
-        if not success: break
-        res = model.predict(image, conf=confidence, verbose=False)
-        boxes = res[0].boxes
-        frame_classes = [int(box.cls[0]) for box in boxes]
-        all_detected_classes.extend(frame_classes)
+        if not success:
+            break
+
+        if roi_coords and counting_direction and line_position_percent is not None:
+            _, detected_classes, new_counted_ids, new_track_history = process_video_frame(
+                image, model, confidence, counted_ids, roi_coords, track_history, counting_direction, line_position_percent, display=False, trail_length=trail_length
+            )
+            counted_ids = new_counted_ids
+            track_history = new_track_history
+            all_detected_classes.extend(detected_classes)
+        else:
+            res = model.predict(image, conf=confidence, verbose=False)
+            boxes = res[0].boxes
+            frame_classes = [int(box.cls[0]) for box in boxes]
+            all_detected_classes.extend(frame_classes)
+
     vid_cap.release()
     
-    # Para a pontuação, consideramos todas as detecções, não apenas as classes únicas
     all_detected_class_names_for_scoring = [CLASSES.get(cls, "") for cls in all_detected_classes]
     score = sum(PONTOS_POR_CLASSE.get(name, 0) for name in all_detected_class_names_for_scoring)
 
-    # Para exibição no relatório, usamos nomes de classes únicos
     unique_classes_ids = sorted(list(set(all_detected_classes)))
     detected_class_names_display = [CLASSES.get(cls, "") for cls in unique_classes_ids]
     status = "Reciclável" if detected_class_names_display else "Nenhum item"
     
     detections_data = [{
         'Fonte': 'Vídeo em Lote',
-        'Itens': len(all_detected_classes),
-        'Classes': detected_class_names_display, # Usar nomes únicos para exibição
+        'Itens': len(counted_ids) if roi_coords else len(all_detected_classes),
+        'Classes': detected_class_names_display,
         'Pontos': score,
         'Status': status
     }]
     return detections_data
 
-def process_batch_videos(uploaded_videos, model, confidence, progress_bar, status_text):
+def process_batch_videos(uploaded_videos, model, confidence, progress_bar, status_text, roi_coords=None, counting_direction=None, line_position_percent=None, trail_length=30):
     """
     Processa uma lista de vídeos carregados em lote.
     """
@@ -166,7 +203,7 @@ def process_batch_videos(uploaded_videos, model, confidence, progress_bar, statu
         if temp_video_path:
             try:
                 vid_cap = cv2.VideoCapture(temp_video_path)
-                video_detections = process_video_stream_for_batch(vid_cap, model, confidence)
+                video_detections = process_video_stream_for_batch(vid_cap, model, confidence, roi_coords, counting_direction, line_position_percent, trail_length=trail_length)
                 if video_detections:
                     video_detections[0]['Fonte'] = video_file.name
                     batch_detections_data.extend(video_detections)
@@ -178,12 +215,12 @@ def process_batch_videos(uploaded_videos, model, confidence, progress_bar, statu
     status_text.text(f"Análise de {total_videos} vídeo(s) concluída!")
     return batch_detections_data
 
-def process_stored_video(conf, model, source_vid_key):
+def process_stored_video(conf, model, source_vid_key, roi_coords=None, counting_direction=None, line_position_percent=None, trail_length=30):
     """Lida com a lógica de vídeo da lista pré-definida."""
     try:
         source_vid_path = str(settings.VIDEOS_DICT.get(source_vid_key))
         vid_cap = cv2.VideoCapture(source_vid_path)
-        return process_video_stream(vid_cap, model, conf, source_name=source_vid_key)
+        return process_video_stream(vid_cap, model, conf, source_name=source_vid_key, roi_coords=roi_coords, counting_direction=counting_direction, line_position_percent=line_position_percent, trail_length=trail_length)
     except Exception as e:
         st.error(f"Erro ao carregar vídeo: {e}")
         return []
@@ -199,7 +236,7 @@ def get_youtube_stream_url(youtube_url):
         st.error(f"Não foi possível obter o vídeo do YouTube. A URL é válida? Erro: {e}")
         return None
 
-def process_video_frame(image, model, confidence, counted_ids, roi_coords, track_history, counting_direction, line_position_percent):
+def process_video_frame(image, model, confidence, counted_ids, roi_coords, track_history, counting_direction, line_position_percent, display=True, trail_length=30):
     """
     Processa um único frame de vídeo, realiza o rastreamento de objetos,
     conta itens que cruzam uma linha em uma região de interesse (ROI) e retorna o frame com as anotações.
@@ -211,20 +248,25 @@ def process_video_frame(image, model, confidence, counted_ids, roi_coords, track
     roi_y2 = int(height * roi_coords[3] / 100)
 
     res = model.track(image, conf=confidence, persist=True, tracker="bytetrack.yaml", verbose=False)
-    res_plotted = res[0].plot()
     
-    # Desenha a ROI
-    cv2.rectangle(res_plotted, (roi_x1, roi_y1), (roi_x2, roi_y2), (0, 255, 0), 2)
-    cv2.putText(res_plotted, "Area de Contagem", (roi_x1, roi_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    if display:
+        res_plotted = res[0].plot()
+    else:
+        res_plotted = image.copy()
 
-    # Lógica da Linha de Contagem
-    is_horizontal = "cima" in counting_direction
-    if is_horizontal:
-        line_y = roi_y1 + int((roi_y2 - roi_y1) * line_position_percent / 100)
-        cv2.line(res_plotted, (roi_x1, line_y), (roi_x2, line_y), (255, 0, 0), 2)
-    else: # Vertical
-        line_x = roi_x1 + int((roi_x2 - roi_x1) * line_position_percent / 100)
-        cv2.line(res_plotted, (line_x, roi_y1), (line_x, roi_y2), (255, 0, 0), 2)
+    if display:
+        # Desenha a ROI
+        cv2.rectangle(res_plotted, (roi_x1, roi_y1), (roi_x2, roi_y2), (0, 255, 0), 2)
+        cv2.putText(res_plotted, "Area de Contagem", (roi_x1, roi_y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        # Lógica da Linha de Contagem
+        is_horizontal = "cima" in counting_direction
+        if is_horizontal:
+            line_y = roi_y1 + int((roi_y2 - roi_y1) * line_position_percent / 100)
+            cv2.line(res_plotted, (roi_x1, line_y), (roi_x2, line_y), (255, 0, 0), 2)
+        else: # Vertical
+            line_x = roi_x1 + int((roi_x2 - roi_x1) * line_position_percent / 100)
+            cv2.line(res_plotted, (line_x, roi_y1), (line_x, roi_y2), (255, 0, 0), 2)
 
     detected_classes = []
     if res[0].boxes.id is not None:
@@ -237,14 +279,31 @@ def process_video_frame(image, model, confidence, counted_ids, roi_coords, track
 
             if track_id not in track_history:
                 track_history[track_id] = []
+            
+            # Limita o histórico de rastro
             track_history[track_id].append((center_x, center_y))
+            if len(track_history[track_id]) > trail_length:
+                track_history[track_id].pop(0) # Remove o ponto mais antigo
 
-            # Verifica o cruzamento da linha apenas se houver histórico suficiente
+            # Desenha o ponto central
+            if display:
+                cv2.circle(res_plotted, (center_x, center_y), 5, (0, 255, 0), -1)
+
+            # Desenha o rastro
+            if display and len(track_history[track_id]) > 1:
+                cv2.polylines(res_plotted, [np.array(track_history[track_id], np.int32)], False, (0, 255, 255), 2)
+
+
             if len(track_history[track_id]) > 1:
                 prev_x, prev_y = track_history[track_id][-2]
                 
-                # Verifica se o cruzamento ocorreu dentro da ROI
                 if roi_x1 < center_x < roi_x2 and roi_y1 < center_y < roi_y2:
+                    is_horizontal = "cima" in counting_direction
+                    if is_horizontal:
+                        line_y = roi_y1 + int((roi_y2 - roi_y1) * line_position_percent / 100)
+                    else: # Vertical
+                        line_x = roi_x1 + int((roi_x2 - roi_x1) * line_position_percent / 100)
+                    
                     crossed = False
                     if counting_direction == "De baixo para cima" and prev_y > line_y and center_y <= line_y:
                         crossed = True
@@ -258,12 +317,12 @@ def process_video_frame(image, model, confidence, counted_ids, roi_coords, track
                     if crossed and track_id not in counted_ids:
                         counted_ids.add(track_id)
                         detected_classes.append(cls)
-                        # Desenha um círculo no ponto de cruzamento para feedback visual
-                        cv2.circle(res_plotted, (center_x, center_y), 5, (0, 0, 255), -1)
+                        if display:
+                            cv2.circle(res_plotted, (center_x, center_y), 5, (0, 0, 255), -1)
 
-    # Exibe a contagem no frame
-    count_text = f"Itens Contados: {len(counted_ids)}"
-    cv2.putText(res_plotted, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+    if display:
+        count_text = f"Itens Contados: {len(counted_ids)}"
+        cv2.putText(res_plotted, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
     
     return res_plotted, detected_classes, counted_ids, track_history
 
